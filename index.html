@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Zarezerwuj termin korepetycji z języka angielskiego. Sprawdź wolne godziny i umów się online." />
+  <meta property="og:title" content="Miss Understanding — Korepetycje Angielskiego" />
+  <meta property="og:description" content="Umów się na korepetycje z języka angielskiego. Wybierz wolny termin i zarezerwuj miejsce." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#1a6566" />
+  <meta name="robots" content="index, follow" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+
+  <title>Miss Understanding — Umów się na Korepetycje</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <!--
+    UWAGA: app.js jest teraz type="module" — Firebase jest inicjalizowany
+    bezpośrednio w środku, bez żadnych window.* pomostów.
+    To gwarantuje pewną inicjalizację i synchronizację między urządzeniami.
+  -->
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+
+<!-- ════════════════════ HEADER ════════════════════ -->
+<header class="site-header" role="banner">
+  <div class="header-inner">
+    <div class="logo" aria-label="Strona główna">
+      <span class="logo-icon" aria-hidden="true">✦</span>
+      <span class="logo-text">Miss Understanding</span>
+    </div>
+
+    <button class="hamburger" id="hamburger"
+            aria-expanded="false" aria-controls="nav-menu"
+            aria-label="Otwórz menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="main-nav" role="navigation" aria-label="Nawigacja główna">
+      <ul class="nav-menu" id="nav-menu" role="list">
+        <li><a href="#schedule" class="nav-link" data-close-nav>Korepetycje</a></li>
+        <li><a href="#calendar" class="nav-link" data-close-nav>Wolne Godziny</a></li>
+        <li><a href="#newsletter" class="nav-link" data-close-nav>Powiadomienia</a></li>
+        <li><a href="#contact" class="nav-link" data-close-nav>Kontakt</a></li>
+        <li class="nav-separator" aria-hidden="true"></li>
+        <li>
+          <button class="btn-login-nav" id="loginToggleBtn"
+                  aria-label="Panel nauczyciela" data-close-nav>
+            <span id="loginBtnLabel">Panel Nauczycielski</span>
+          </button>
+        </li>
+        <li class="theme-nav-item">
+          <button class="theme-toggle" id="themeToggle"
+                  aria-label="Przełącz tryb kolorystyczny" data-close-nav>
+            <span id="themeLabel">Jasność</span>
+            <span class="theme-icon" id="themeIcon">☀</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<!-- ════════════════════ HERO ════════════════════ -->
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="hero-orb orb-1"></div>
+    <div class="hero-orb orb-2"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-particles" id="heroParticles"></div>
+  </div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Miss Understanding — Korepetycje z języka angielskiego</p>
+    <h1 id="heroTitle" class="hero-title">
+      Pasuje Ci inny<br/><em>termin?</em>
+    </h1>
+    <p class="hero-subtitle">
+      Wypadła Ci lekcja?<br>
+      Zmienił Ci się plan zajęć?<br><br>
+      Umów się na <strong>wolną godzinę</strong> i dostosuj zajęcia pod siebie.
+    </p>
+    <a href="#calendar" class="btn-cta">
+      <span>Znajdź wolny termin</span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </div>
+</section>
+
+<!-- ════════════════════ SYNC STATUS (tylko dla admina) ════════════════════ -->
+<div class="sync-bar" id="syncBar" aria-live="polite" style="display:none">
+  <span class="sync-dot" id="syncDot"></span>
+  <span id="syncText">Łączenie…</span>
+</div>
+
+<!-- ════════════════════ CALENDAR ════════════════════ -->
+<main id="calendar" class="calendar-section" role="main">
+  <div class="container">
+    <header class="section-header">
+      <h2 class="section-title">Wolne <em>Terminy</em></h2>
+      <p class="section-desc">Wybierz dostępny termin i umów się na korepetycje.</p>
+    </header>
+
+    <div class="calendar-nav" role="group" aria-label="Nawigacja kalendarza">
+      <button class="cal-nav-btn" id="prevMonth" aria-label="Poprzedni miesiąc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h3 class="calendar-month" id="calendarMonth" aria-live="polite"></h3>
+      <button class="cal-nav-btn" id="nextMonth" aria-label="Następny miesiąc">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M8 4l6 6-6 6" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="calendar-grid-wrapper">
+      <div class="calendar-weekdays" role="row">
+        <div role="columnheader">Pon</div>
+        <div role="columnheader">Wt</div>
+        <div role="columnheader">Śr</div>
+        <div role="columnheader">Czw</div>
+        <div role="columnheader">Pt</div>
+        <div role="columnheader">Sob</div>
+        <div role="columnheader">Nd</div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid" role="grid"
+           aria-label="Kalendarz terminów"></div>
+    </div>
+
+    <div class="calendar-legend" role="note">
+      <div class="legend-item">
+        <span class="legend-dot available" aria-hidden="true"></span>
+        <span>Wolne godziny</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot booked" aria-hidden="true"></span>
+        <span>Zarezerwowane</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot today" aria-hidden="true"></span>
+        <span>Dzisiaj</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ════════════════════ NEWSLETTER ════════════════════ -->
+<section id="newsletter" class="newsletter-section" aria-labelledby="newsletterTitle">
+  <div class="container">
+    <div class="newsletter-card">
+      <div class="newsletter-icon" aria-hidden="true">🔔</div>
+      <div class="newsletter-content">
+        <h2 id="newsletterTitle" class="newsletter-title">
+          Bądź na <em>bieżąco</em>
+        </h2>
+        <p class="newsletter-desc">
+          Wchodzisz na kalendarz i nie ma wolnego terminu, a jednak chcesz się umówić?<br>
+          <strong>Podaj swój adres mailowy</strong> — wyślemy Ci powiadomienie, gdy pojawi się nowy wolny termin!
+        </p>
+        <div class="newsletter-form">
+          <div class="newsletter-input-wrap">
+            <input type="email" id="newsletterEmail" class="form-input newsletter-input"
+                   placeholder="twoj@email.pl" autocomplete="email"
+                   inputmode="email" aria-label="Adres e-mail do powiadomień" />
+            <button class="btn-newsletter" id="newsletterSubmit">
+              <span id="newsletterBtnLabel">Powiadom mnie</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"
+                      stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="hp-wrap" aria-hidden="true">
+            <input type="text" id="hpNewsletter" name="hpNewsletter"
+                   tabindex="-1" autocomplete="off" />
+          </div>
+          <div id="newsletterMsg" class="newsletter-msg" role="alert" aria-live="polite"></div>
+        </div>
+        <p class="newsletter-note">Możesz wypisać się w każdej chwili. Dane nie są udostępniane osobom trzecim.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ ADMIN PANEL ════════════════════ -->
+<section class="admin-panel" id="adminPanel"
+         aria-label="Panel nauczyciela" aria-hidden="true" style="display:none">
+  <div class="container">
+    <div class="admin-header">
+      <div>
+        <h2 class="admin-title">Panel Nauczyciela</h2>
+        <p class="admin-subtitle">Zarządzaj dostępnymi terminami</p>
+      </div>
+      <button class="btn-logout" id="logoutBtn" aria-label="Wyloguj się">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 3H3a1 1 0 00-1 1v8a1 1 0 001 1h3M10 11l3-3-3-3M13 8H6"
+                stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Wyloguj
+      </button>
+    </div>
+
+    <!-- Admin Tabs -->
+    <div class="admin-tabs" role="tablist" aria-label="Sekcje panelu">
+      <button class="admin-tab active" id="tabSlots" role="tab" aria-selected="true"
+              aria-controls="adminTabSlots" onclick="switchAdminTab('slots')">
+        📅 Wolne Godziny
+      </button>
+      <button class="admin-tab" id="tabSchedule" role="tab" aria-selected="false"
+              aria-controls="adminTabSchedule" onclick="switchAdminTab('schedule')">
+        📆 Grafik Tygodniowy
+      </button>
+    </div>
+
+    <!-- TAB: WOLNE GODZINY -->
+    <div id="adminTabSlots" role="tabpanel" aria-labelledby="tabSlots">
+    <div class="admin-stats">
+      <div class="stat-card">
+        <div class="stat-num" id="statFree">—</div>
+        <div class="stat-label">Wolnych bloków</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statBooked">—</div>
+        <div class="stat-label">Rezerwacji</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statSubscribers">—</div>
+        <div class="stat-label">Subskrybentów</div>
+      </div>
+    </div>
+
+    <div class="admin-form-card">
+      <h3 class="admin-form-title">Dodaj blok godzin</h3>
+      <p class="admin-form-hint">Ustaw blok np. 16:00–20:00 — uczniowie sami wybiorą godziny co 30 min.</p>
+      <div class="admin-form">
+        <div class="form-group">
+          <label for="adminDate" class="form-label">Data</label>
+          <input type="date" id="adminDate" class="form-input" aria-required="true" />
+        </div>
+        <div class="form-group">
+          <label for="adminTimeFrom" class="form-label">Godzina od</label>
+          <input type="time" id="adminTimeFrom" class="form-input" aria-required="true" />
+        </div>
+        <div class="form-group">
+          <label for="adminTimeTo" class="form-label">Godzina do</label>
+          <input type="time" id="adminTimeTo" class="form-input" aria-required="true" />
+        </div>
+        <button class="btn-add-slot" id="addSlotBtn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Dodaj termin
+        </button>
+      </div>
+      <div id="adminFeedback" class="admin-feedback" role="alert" aria-live="polite"></div>
+    </div>
+
+    <div class="admin-slots-list">
+      <h3 class="admin-form-title">Wszystkie bloki i rezerwacje</h3>
+      <div id="adminSlotsContent"></div>
+    </div>
+
+    <!-- SUBSKRYBENCI -->
+    <div class="admin-subscribers-section">
+      <div class="admin-subs-header">
+        <div>
+          <h3 class="admin-form-title">
+            Subskrybenci powiadomień
+            <span class="subs-count-badge" id="subscribersCount">—</span>
+          </h3>
+          <p class="admin-form-hint">Osoby, które chcą być powiadamiane o nowych terminach.</p>
+        </div>
+        <button class="btn-refresh-subs" onclick="renderAdminSubscribers()" aria-label="Odśwież listę">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+            <path d="M13 7.5A5.5 5.5 0 112.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M2.5 3.5v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Odśwież
+        </button>
+      </div>
+      <div class="subscribers-table-wrap">
+        <div class="subscribers-table-head">
+          <span></span>
+          <span>Adres e-mail</span>
+          <span>Data i godzina zapisu</span>
+        </div>
+        <div id="adminSubscribersList">
+          <div class="subs-loading">Zaloguj się, aby zobaczyć listę.</div>
+        </div>
+      </div>
+    </div>
+    </div><!-- end TAB slots -->
+
+    <!-- TAB: GRAFIK TYGODNIOWY -->
+    <div id="adminTabSchedule" role="tabpanel" aria-labelledby="tabSchedule" style="display:none">
+      <div class="admin-form-card">
+        <h3 class="admin-form-title">Dodaj dostępność tygodniową</h3>
+        <p class="admin-form-hint">Wybierz dzień tygodnia i przedział godzin. Uczniowie będą mogli zarezerwować stały termin lekcji.</p>
+        <div class="admin-form admin-form-schedule">
+          <div class="form-group">
+            <label for="schedDayOfWeek" class="form-label">Dzień tygodnia</label>
+            <select id="schedDayOfWeek" class="form-input form-select">
+              <option value="1">Poniedziałek</option>
+              <option value="2">Wtorek</option>
+              <option value="3">Środa</option>
+              <option value="4">Czwartek</option>
+              <option value="5">Piątek</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="schedTimeFrom" class="form-label">Godzina od</label>
+            <input type="time" id="schedTimeFrom" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label for="schedTimeTo" class="form-label">Godzina do</label>
+            <input type="time" id="schedTimeTo" class="form-input" />
+          </div>
+          <button class="btn-add-slot" id="addScheduleSlotBtn">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Dodaj
+          </button>
+        </div>
+        <div id="schedAdminFeedback" class="admin-feedback" role="alert" aria-live="polite"></div>
+      </div>
+
+      <div class="admin-slots-list">
+        <h3 class="admin-form-title">Terminy stałe i rezerwacje</h3>
+        <div id="adminScheduleSlotsContent"></div>
+      </div>
+    </div><!-- end TAB schedule -->
+
+  </div>
+</section>
+
+<!-- ════════════════════ KOREPETYCJE — GRAFIK TYGODNIOWY ════════════════════ -->
+<section id="schedule" class="schedule-section" aria-labelledby="scheduleTitle">
+  <div class="container">
+    <header class="section-header">
+      <h2 class="section-title" id="scheduleTitle">Stałe <em>Korepetycje</em></h2>
+      <p class="section-desc">Wybierz stały tygodniowy termin i ucz się regularnie. Zarezerwuj swoje miejsce na 1h lub 1.5h lekcji.</p>
+    </header>
+
+    <!-- Siatka Pon–Pt -->
+    <div class="week-grid" id="weekGrid" aria-label="Tygodniowy grafik korepetycji">
+      <!-- Nagłówki dni -->
+      <div class="week-day-col" data-day="1">
+        <div class="week-day-header">Poniedziałek</div>
+        <div class="week-day-slots" id="daySlots1"></div>
+      </div>
+      <div class="week-day-col" data-day="2">
+        <div class="week-day-header">Wtorek</div>
+        <div class="week-day-slots" id="daySlots2"></div>
+      </div>
+      <div class="week-day-col" data-day="3">
+        <div class="week-day-header">Środa</div>
+        <div class="week-day-slots" id="daySlots3"></div>
+      </div>
+      <div class="week-day-col" data-day="4">
+        <div class="week-day-header">Czwartek</div>
+        <div class="week-day-slots" id="daySlots4"></div>
+      </div>
+      <div class="week-day-col" data-day="5">
+        <div class="week-day-header">Piątek</div>
+        <div class="week-day-slots" id="daySlots5"></div>
+      </div>
+    </div>
+
+    <div class="calendar-legend" role="note">
+      <div class="legend-item"><span class="legend-dot available"></span><span>Wolne miejsce</span></div>
+      <div class="legend-item"><span class="legend-dot booked"></span><span>Zajęte</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ MODAL: REZERWACJA STAŁEGO TERMINU ════════════════════ -->
+<div class="modal-overlay" id="scheduleBookingModal" role="dialog" aria-modal="true"
+     aria-labelledby="schedBookingTitle" aria-hidden="true">
+  <div class="modal-card schedule-booking-card">
+    <button class="modal-close" id="closeScheduleBookingModal" aria-label="Zamknij">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="modal-icon" aria-hidden="true">📆</div>
+    <h2 id="schedBookingTitle" class="modal-title">Stały termin lekcji</h2>
+    <div class="booking-slot-info" id="schedBookingSlotInfo" aria-live="polite"></div>
+
+    <div class="modal-form">
+      <!-- Czas trwania lekcji -->
+      <div class="form-group">
+        <label class="form-label">Czas trwania lekcji</label>
+        <div class="duration-picker" role="radiogroup" aria-label="Wybierz czas trwania">
+          <label class="duration-option">
+            <input type="radio" name="schedDuration" value="60" checked />
+            <span class="duration-label">
+              <strong>1 godzina</strong>
+              <small>60 min</small>
+            </span>
+          </label>
+          <label class="duration-option">
+            <input type="radio" name="schedDuration" value="90" />
+            <span class="duration-label">
+              <strong>1,5 godziny</strong>
+              <small>90 min</small>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Przedział rezerwacji -->
+      <div class="form-group">
+        <label class="form-label">Okres rezerwacji (od kiedy do kiedy)</label>
+        <div class="date-range-row">
+          <div class="form-group" style="flex:1">
+            <label for="schedStartDate" class="form-label">Data rozpoczęcia</label>
+            <input type="date" id="schedStartDate" class="form-input" aria-required="true" />
+          </div>
+          <span class="date-range-dash">–</span>
+          <div class="form-group" style="flex:1">
+            <label for="schedEndDate" class="form-label">Data zakończenia</label>
+            <input type="date" id="schedEndDate" class="form-input" aria-required="true" />
+          </div>
+        </div>
+        <p class="field-hint">Np. od początku semestru do wakacji. Rezerwujesz ten sam termin co tydzień.</p>
+      </div>
+
+      <!-- Dane osobowe -->
+      <div class="form-group">
+        <label for="schedName" class="form-label">Imię i nazwisko</label>
+        <input type="text" id="schedName" class="form-input" placeholder="Twoje imię i nazwisko"
+               autocomplete="name" inputmode="text" />
+      </div>
+      <div class="form-group">
+        <label for="schedEmail" class="form-label">Adres e-mail</label>
+        <input type="email" id="schedEmail" class="form-input" placeholder="twoj@email.pl"
+               autocomplete="email" inputmode="email" />
+      </div>
+      <div class="form-group">
+        <label for="schedPhone" class="form-label">Numer telefonu</label>
+        <input type="tel" id="schedPhone" class="form-input" placeholder="+48 123 456 789"
+               autocomplete="tel" inputmode="tel" />
+      </div>
+
+      <!-- Klasa / etap edukacji -->
+      <div class="form-group">
+        <label for="schedSchoolStage" class="form-label">Aktualny etap edukacji</label>
+        <select id="schedSchoolStage" class="form-input form-select">
+          <option value="">— Wybierz —</option>
+          <optgroup label="Szkoła podstawowa">
+            <option value="SP-4">Klasa 4 SP</option>
+            <option value="SP-5">Klasa 5 SP</option>
+            <option value="SP-6">Klasa 6 SP</option>
+            <option value="SP-7">Klasa 7 SP</option>
+            <option value="SP-8">Klasa 8 SP (egzamin ósmoklasisty)</option>
+          </optgroup>
+          <optgroup label="Liceum / Technikum">
+            <option value="LO-1">Klasa 1 LO/T</option>
+            <option value="LO-2">Klasa 2 LO/T</option>
+            <option value="LO-3">Klasa 3 LO/T (matura)</option>
+            <option value="LO-4">Klasa 4 Technikum (matura)</option>
+          </optgroup>
+          <optgroup label="Inne">
+            <option value="student">Student/ka</option>
+            <option value="adult">Dorosły — nie chodzę do szkoły</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Egzamin -->
+      <div class="form-group">
+        <label for="schedExam" class="form-label">Cel / egzamin</label>
+        <select id="schedExam" class="form-input form-select" onchange="toggleExamOther(this)">
+          <option value="">— Wybierz cel nauki —</option>
+          <option value="osmoklasisty">Egzamin ósmoklasisty</option>
+          <option value="matura-podstawa">Matura podstawowa</option>
+          <option value="matura-rozszerzona">Matura rozszerzona</option>
+          <option value="konwersacje">Konwersacje / komunikacja</option>
+          <option value="gramatyka">Gramatyka</option>
+          <option value="certyfikat">Certyfikat językowy (IELTS, FCE itp.)</option>
+          <option value="inne">Inne — opiszę poniżej</option>
+        </select>
+      </div>
+      <div class="form-group" id="examOtherGroup" style="display:none">
+        <label for="schedExamOther" class="form-label">Opisz swój cel <span class="label-optional">(opcjonalnie)</span></label>
+        <textarea id="schedExamOther" class="form-input form-textarea" rows="2"
+                  placeholder="Np. przygotowanie do rozmowy kwalifikacyjnej..."></textarea>
+      </div>
+
+      <!-- Poziom angielskiego -->
+      <div class="form-group">
+        <label for="schedLevel" class="form-label">Aktualny poziom angielskiego</label>
+        <select id="schedLevel" class="form-input form-select">
+          <option value="">— Wybierz poziom —</option>
+          <option value="A1">A1 — Początkujący</option>
+          <option value="A2">A2 — Podstawowy</option>
+          <option value="B1">B1 — Średnio-zaawansowany</option>
+          <option value="B2">B2 — Wyższy-średni</option>
+          <option value="C1">C1 — Zaawansowany</option>
+          <option value="C2">C2 — Biegły</option>
+          <option value="unknown">Nie wiem — ocenię z nauczycielem</option>
+        </select>
+      </div>
+
+      <!-- Wiadomość -->
+      <div class="form-group">
+        <label for="schedMessage" class="form-label">
+          Dodatkowe informacje <span class="label-optional">(opcjonalnie)</span>
+        </label>
+        <textarea id="schedMessage" class="form-input form-textarea" rows="2"
+                  placeholder="Cokolwiek chcesz powiedzieć nauczycielce..."></textarea>
+      </div>
+
+      <div class="hp-wrap" aria-hidden="true">
+        <input type="text" id="hpSched" name="hpSched" tabindex="-1" autocomplete="off" />
+      </div>
+      <div id="schedBookingError" class="form-error" role="alert" aria-live="polite"></div>
+      <button class="btn-submit" id="schedBookingSubmit">
+        <span id="schedBookingSubmitLabel">Zarezerwuj stały termin</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ MODAL: SUKCES GRAFIK ════════════════════ -->
+<div class="modal-overlay" id="schedSuccessModal" role="dialog" aria-modal="true"
+     aria-labelledby="schedSuccessTitle" aria-hidden="true">
+  <div class="modal-card success-modal-card">
+    <div class="success-checkmark" aria-hidden="true">
+      <svg viewBox="0 0 52 52" fill="none">
+        <circle class="success-circle" cx="26" cy="26" r="25" stroke="currentColor" stroke-width="2"/>
+        <path class="success-check" d="M14 26l8 8 16-16" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 id="schedSuccessTitle" class="modal-title">Termin zarezerwowany!</h2>
+    <p class="modal-subtitle" id="schedSuccessMessage"></p>
+    <button class="btn-submit btn-success-close" id="closeSchedSuccessModal">Świetnie, dziękuję!</button>
+  </div>
+</div>
+
+<!-- ════════════════════ FOOTER ════════════════════ -->
+<footer id="contact" class="site-footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <span class="footer-logo-icon" aria-hidden="true">Umów się na zajęcia już dziś! ✦</span>
+        <h2 class="footer-brand-name">Miss <em>Understanding</em></h2>
+        <p class="footer-tagline">Nauka angielskiego dostosowana do Ciebie</p>
+      </div>
+      <div class="footer-contact">
+        <h3 class="footer-heading">Kontakt</h3>
+        <ul class="footer-contact-list" role="list">
+          <li>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2 4l6 5 6-5M2 4h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"
+                    stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            <a href="mailto:angielski.nataliawojcik@gmail.com">angielski.nataliawojcik@gmail.com</a>
+          </li>
+        </ul>
+      </div>
+      <div class="footer-info">
+        <h3 class="footer-heading">Informacje</h3>
+        <ul class="footer-info-list" role="list">
+          <li>Lekcje online i stacjonarnie w Tychach</li>
+          <li>Nauczanie od Poziomu A1 do C2</li>
+          <li>Przygotowanie do egzaminów</li>
+          <li>Konwersacje, gramatyka, pisanie</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© <span id="year"></span> Miss Understanding — Korepetycje Angielskiego. Wszelkie prawa zastrzeżone.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ════════════════════ MODAL: LOGOWANIE ════════════════════ -->
+<div class="modal-overlay" id="loginModal" role="dialog" aria-modal="true"
+     aria-labelledby="loginModalTitle" aria-hidden="true">
+  <div class="modal-card login-modal-card">
+    <button class="modal-close" id="closeLoginModal" aria-label="Zamknij">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="modal-icon" aria-hidden="true">🔐</div>
+    <h2 id="loginModalTitle" class="modal-title">Logowanie</h2>
+    <p class="modal-subtitle">Panel nauczyciela</p>
+    <div class="modal-form">
+      <div class="form-group">
+        <label for="loginUser" class="form-label">Login</label>
+        <input type="text" id="loginUser" class="form-input" placeholder="Wpisz login"
+               autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="loginPass" class="form-label">Hasło</label>
+        <div class="input-password-wrapper">
+          <input type="password" id="loginPass" class="form-input" placeholder="Wpisz hasło"
+                 autocomplete="current-password" />
+          <button class="btn-toggle-pass" id="togglePass" type="button" aria-label="Pokaż/ukryj hasło">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.2"/>
+              <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="hp-wrap" aria-hidden="true">
+        <input type="text" id="hpLogin" name="hpLogin" tabindex="-1" autocomplete="off" />
+      </div>
+      <div id="loginError" class="form-error" role="alert" aria-live="polite"></div>
+      <button class="btn-submit" id="loginSubmit">Zaloguj się</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ MODAL: SCROLL TIME PICKER ════════════════════ -->
+<div class="modal-overlay" id="timePickerModal" role="dialog" aria-modal="true"
+     aria-labelledby="timePickerTitle" aria-hidden="true">
+  <div class="modal-card time-picker-card">
+    <button class="modal-close" id="closeTimePickerModal" aria-label="Zamknij">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="modal-icon" aria-hidden="true">⏰</div>
+    <h2 id="timePickerTitle" class="modal-title">Wybierz godziny lekcji</h2>
+    <p class="time-picker-date-label" id="timePickerDate"></p>
+    <p class="modal-subtitle">Przewiń i wybierz godzinę <strong>od</strong> i <strong>do</strong> (co 30 min)</p>
+    <div class="scroll-pickers-wrapper">
+      <div class="scroll-picker-col">
+        <div class="scroll-picker-label">OD</div>
+        <div class="scroll-picker" id="scrollFrom" role="listbox"
+             aria-label="Godzina rozpoczęcia" tabindex="0"></div>
+      </div>
+      <div class="scroll-picker-divider" aria-hidden="true">—</div>
+      <div class="scroll-picker-col">
+        <div class="scroll-picker-label">DO</div>
+        <div class="scroll-picker" id="scrollTo" role="listbox"
+             aria-label="Godzina zakończenia" tabindex="0"></div>
+      </div>
+    </div>
+    <div class="time-selection-preview" id="timeSelectionPreview" aria-live="polite">
+      Wybierz godziny powyżej
+    </div>
+    <div id="timePickerError" class="form-error" role="alert" aria-live="polite"></div>
+    <button class="btn-submit btn-confirm-time" id="confirmTimeBtn">
+      Dalej — wypełnij swoje dane →
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════ MODAL: REZERWACJA ════════════════════ -->
+<div class="modal-overlay" id="bookingModal" role="dialog" aria-modal="true"
+     aria-labelledby="bookingModalTitle" aria-hidden="true">
+  <div class="modal-card booking-modal-card">
+    <button class="modal-close" id="closeBookingModal" aria-label="Zamknij">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="modal-icon" aria-hidden="true">📅</div>
+    <h2 id="bookingModalTitle" class="modal-title">Rezerwacja terminu</h2>
+    <div class="booking-slot-info" id="bookingSlotInfo" aria-live="polite"></div>
+    <div class="modal-form">
+      <div class="form-group">
+        <label for="bookName" class="form-label">Imię i nazwisko</label>
+        <input type="text" id="bookName" class="form-input" placeholder="Twoje imię i nazwisko"
+               autocomplete="name" inputmode="text" />
+      </div>
+      <div class="form-group">
+        <label for="bookEmail" class="form-label">Adres e-mail</label>
+        <input type="email" id="bookEmail" class="form-input" placeholder="twoj@email.pl"
+               autocomplete="email" inputmode="email" />
+      </div>
+      <div class="form-group">
+        <label for="bookMessage" class="form-label">
+          Wiadomość <span class="label-optional">(opcjonalnie)</span>
+        </label>
+        <textarea id="bookMessage" class="form-input form-textarea"
+                  placeholder="Powiedz coś o swoim poziomie języka..." rows="3"></textarea>
+      </div>
+      <div class="hp-wrap" aria-hidden="true">
+        <input type="text" id="hpField" name="hpField" tabindex="-1" autocomplete="off" />
+      </div>
+      <div id="bookingError" class="form-error" role="alert" aria-live="polite"></div>
+      <button class="btn-submit" id="bookingSubmit">
+        <span id="bookingSubmitLabel">Zarezerwuj termin</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ MODAL: SUKCES ════════════════════ -->
+<div class="modal-overlay" id="successModal" role="dialog" aria-modal="true"
+     aria-labelledby="successModalTitle" aria-hidden="true">
+  <div class="modal-card success-modal-card">
+    <div class="success-checkmark" aria-hidden="true">
+      <svg viewBox="0 0 52 52" fill="none">
+        <circle class="success-circle" cx="26" cy="26" r="25" stroke="currentColor" stroke-width="2"/>
+        <path class="success-check" d="M14 26l8 8 16-16" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 id="successModalTitle" class="modal-title">Rezerwacja potwierdzona!</h2>
+    <p class="modal-subtitle" id="successMessage"></p>
+    <button class="btn-submit btn-success-close" id="closeSuccessModal">Świetnie, dziękuję!</button>
+  </div>
+</div>
+
+<!-- ════════════════════ MODAL: SZCZEGÓŁY (admin) ════════════════════ -->
+<div class="modal-overlay" id="slotDetailModal" role="dialog" aria-modal="true"
+     aria-labelledby="slotDetailTitle" aria-hidden="true">
+  <div class="modal-card">
+    <button class="modal-close" id="closeSlotDetail" aria-label="Zamknij">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <h2 id="slotDetailTitle" class="modal-title">Szczegóły terminu</h2>
+    <div id="slotDetailContent" class="slot-detail-content"></div>
+    <button class="btn-delete-slot" id="deleteSlotBtn">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M2 3h10M5 3V2h4v1M6 6v4M8 6v4M3 3l1 9h6l1-9"
+              stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      Usuń blok
+    </button>
+  </div>
+</div>
+
+<!-- NIE ma już osobnego <script src="app.js"> — jest wczytywany jako moduł w <head> -->
+</body>
+</html>
